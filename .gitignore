@@ -1,0 +1,70 @@
+# ===================================
+# ROOT .GITIGNORE (MONOREPO)
+# ===================================
+
+# Operating System Files
+# ----------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# IDE & Editor Files
+# ------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+# ----
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment Files (IMPORTANT!)
+# ------------------------------
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temporary Files
+# ---------------
+tmp/
+temp/
+*.tmp
+.cache/
+
+# Build Artifacts (Global)
+# ------------------------
+dist/
+build/
+out/
+
+# Coverage Reports
+# ----------------
+coverage/
+*.lcov
+.nyc_output/
+
+# Misc
+# ----
+.turbo/

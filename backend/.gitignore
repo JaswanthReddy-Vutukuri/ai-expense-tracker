@@ -1,0 +1,55 @@
+# ===================================
+# BACKEND .GITIGNORE
+# ===================================
+
+# Dependencies
+# ------------
+node_modules/
+package-lock.json
+
+# Environment Variables (CRITICAL - Contains JWT Secret!)
+# -------------------------------------------------------
+.env
+.env.local
+.env.*.local
+
+# Database Files (SQLite - Generated at Runtime)
+# ----------------------------------------------
+*.sqlite
+*.sqlite3
+*.db
+database.sqlite
+
+# But keep example/seed data if needed
+# !database.example.sqlite
+
+# Logs
+# ----
+logs/
+*.log
+npm-debug.log*
+
+# Testing
+# -------
+coverage/
+.nyc_output/
+
+# OS Files
+# --------
+.DS_Store
+Thumbs.db
+
+# IDE
+# ---
+.vscode/
+.idea/
+
+# Temporary Files
+# ---------------
+*.tmp
+tmp/
+.cache/
+
+# Uploaded Files (if any)
+# -----------------------
+uploads/

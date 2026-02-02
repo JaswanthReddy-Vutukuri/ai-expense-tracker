@@ -1,0 +1,52 @@
+# ===================================
+# AI ORCHESTRATOR .GITIGNORE
+# ===================================
+
+# Dependencies
+# ------------
+node_modules/
+package-lock.json
+
+# Environment Variables (CRITICAL - Contains API Keys!)
+# -----------------------------------------------------
+.env
+.env.local
+.env.*.local
+
+# Data & Storage (Generated at Runtime)
+# --------------------------------------
+data/vector-store.json
+data/reports/*.csv
+data/reports/*.html
+
+# But keep the data directory structure
+!data/
+!data/reports/
+!data/reports/.gitkeep
+
+# Logs
+# ----
+logs/
+*.log
+npm-debug.log*
+
+# Testing
+# -------
+coverage/
+.nyc_output/
+
+# OS Files
+# --------
+.DS_Store
+Thumbs.db
+
+# IDE
+# ---
+.vscode/
+.idea/
+
+# Temporary Files
+# ---------------
+*.tmp
+tmp/
+.cache/

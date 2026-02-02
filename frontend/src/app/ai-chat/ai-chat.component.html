@@ -1,0 +1,124 @@
+<!-- Floating Chat Toggle Button -->
+<button 
+  *ngIf="!isOpen()"
+  class="chat-toggle-button"
+  mat-fab
+  color="primary"
+  (click)="toggleChat()"
+  aria-label="Open AI Chat">
+  <mat-icon>smart_toy</mat-icon>
+</button>
+
+<!-- Chat Window -->
+<div class="chat-window" *ngIf="isOpen()">
+  <!-- Chat Header -->
+  <div class="chat-header">
+    <div class="chat-header-content">
+      <mat-icon class="chat-icon">smart_toy</mat-icon>
+      <span class="chat-title">AI Assistant</span>
+    </div>
+    <button mat-icon-button (click)="toggleChat()" aria-label="Close chat">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <!-- Uploaded Documents Bar -->
+  <div class="documents-bar" *ngIf="uploadedDocuments().length > 0">
+    <div class="documents-label">
+      <mat-icon>description</mat-icon>
+      <span>Uploaded Documents:</span>
+    </div>
+    <mat-chip-set>
+      <mat-chip *ngFor="let doc of uploadedDocuments()" 
+                [removable]="true"
+                (removed)="removeDocument(doc)">
+        {{ doc }}
+        <mat-icon matChipRemove>cancel</mat-icon>
+      </mat-chip>
+    </mat-chip-set>
+  </div>
+
+  <!-- Chat Messages -->
+  <div class="chat-messages">
+    <!-- Welcome message if no messages -->
+    <div *ngIf="messages().length === 0" class="welcome-message">
+      <mat-icon class="welcome-icon">smart_toy</mat-icon>
+      <p>Hi! I'm your AI assistant.</p>
+      <p class="welcome-hint">Ask me anything about your expenses!</p>
+      <div class="example-queries">
+        <small>Try asking:</small>
+        <ul>
+          <li>"Add ₹200 for lunch today"</li>
+          <li>"Show my expenses for this week"</li>
+          <li>"What did I spend on groceries?"</li>
+        </ul>
+        <button mat-stroked-button color="primary" (click)="triggerFileUpload()" class="upload-button">
+          <mat-icon>upload_file</mat-icon>
+          Upload PDF Document
+        </button>
+        <small class="upload-hint">Upload expense receipts or statements to ask questions about them</small>
+      </div>
+    </div>
+
+    <!-- Message list -->
+    <div *ngFor="let message of messages()" 
+         class="message-wrapper"
+         [class.user-message-wrapper]="message.role === 'user'"
+         [class.assistant-message-wrapper]="message.role === 'assistant'">
+      <div class="message" 
+           [class.user-message]="message.role === 'user'"
+           [class.assistant-message]="message.role === 'assistant'">
+        <div class="message-content">{{ message.content }}</div>
+      </div>
+    </div>
+
+    <!-- Loading indicator -->
+    <div *ngIf="isLoading()" class="message-wrapper assistant-message-wrapper">
+      <div class="message assistant-message loading-message">
+        <mat-spinner diameter="20"></mat-spinner>
+        <span class="loading-text">Thinking...</span>
+      </div>
+    </div>
+
+    <!-- Error message -->
+    <div *ngIf="errorMessage()" class="error-banner">
+      <mat-icon class="error-icon">error_outline</mat-icon>
+      <span class="error-text">{{ errorMessage() }}</span>
+      <button mat-icon-button (click)="clearError()" class="error-close">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Chat Input -->
+  <div class="chat-input-container">
+    <button 
+      mat-icon-button 
+      color="primary"
+      (click)="triggerFileUpload()"
+      [disabled]="isLoading() || isUploading()"
+      class="attach-button"
+      matTooltip="Upload PDF (optionally type a question first)"
+      aria-label="Upload document">
+      <mat-icon>attach_file</mat-icon>
+    </button>
+    <mat-form-field class="chat-input-field" appearance="outline">
+      <input 
+        matInput 
+        [(ngModel)]="userInput"
+        (keypress)="onKeyPress($event)"
+        [disabled]="isLoading() || isUploading()"
+        placeholder="Type your message or question..."
+        aria-label="Chat message input">
+    </mat-form-field>
+    <button 
+      mat-icon-button 
+      color="primary"
+      (click)="sendMessage()"
+      [disabled]="!userInput.trim() || isLoading() || isUploading()"
+      class="send-button"
+      aria-label="Send message">
+      <mat-icon>send</mat-icon>
+    </button>
+  </div>
+</div>

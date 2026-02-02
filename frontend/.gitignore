@@ -1,0 +1,84 @@
+# ===================================
+# FRONTEND (ANGULAR) .GITIGNORE
+# ===================================
+
+# Dependencies
+# ------------
+node_modules/
+package-lock.json
+
+# Build Output
+# ------------
+dist/
+.angular/
+.angular/cache/
+
+# Environment Variables
+# ---------------------
+.env
+.env.local
+.env.*.local
+
+# Angular Specific
+# ----------------
+/.angular/cache
+.angular/cache/
+/out-tsc
+/bazel-out
+
+# IDEs and Editors
+# ----------------
+.vscode/
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history/*
+
+# Miscellaneous
+# -------------
+.sass-cache/
+/connect.lock
+/coverage
+/libpeerconnection.log
+testem.log
+/typings
+
+# System Files
+# ------------
+.DS_Store
+Thumbs.db
+
+# Logs
+# ----
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+# -------
+/coverage
+/.nyc_output
+
+# E2E
+# ---
+/e2e/*.js
+/e2e/*.map
+
+# Temporary Files
+# ---------------
+*.tmp
+tmp/
+.cache/
