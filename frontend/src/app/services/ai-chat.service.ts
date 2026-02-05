@@ -10,6 +10,7 @@ export interface ChatMessage {
 
 export interface ChatRequest {
   message: string;
+  history?: ChatMessage[];  // Optional conversation history for context
 }
 
 export interface ChatResponse {
@@ -38,11 +39,13 @@ export class AiChatService {
   constructor(private http: HttpClient) {}
 
   /**
-   * Send a message to the AI chat endpoint
+   * Send a message to the AI chat endpoint with conversation history
    * JWT token will be automatically attached by the JWT interceptor
+   * @param message Current user message
+   * @param history Optional array of previous messages for context
    */
-  sendMessage(message: string): Observable<ChatResponse> {
-    const payload: ChatRequest = { message };
+  sendMessage(message: string, history?: ChatMessage[]): Observable<ChatResponse> {
+    const payload: ChatRequest = { message, history };
     return this.http.post<ChatResponse>(`${this.aiUrl}/chat`, payload);
   }
 

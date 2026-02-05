@@ -28,6 +28,10 @@ import { AiChatService, ChatMessage } from '../services/ai-chat.service';
   styleUrls: ['./ai-chat.component.scss']
 })
 export class AiChatComponent {
+  // Configuration
+  private readonly MAX_HISTORY_MESSAGES = 20; // Keep last 10 exchanges (20 messages)
+  private readonly STORAGE_KEY = 'ai-expense-tracker-chat-history';
+  
   // UI state
   isOpen = signal(false);
   isLoading = signal(false);
@@ -44,6 +48,13 @@ export class AiChatComponent {
   constructor(private aiChatService: AiChatService) {}
 
   /**
+   * Initialize component and load saved chat history
+   */
+  ngOnInit(): void {
+    this.loadChatHistory();
+  }
+
+  /**
    * Toggle chat window open/close
    */
   toggleChat(): void {
@@ -54,7 +65,7 @@ export class AiChatComponent {
   }
 
   /**
-   * Send user message to AI
+   * Send user message to AI with conversation history
    */
   sendMessage(): void {
     const message = this.userInput.trim();
@@ -68,7 +79,9 @@ export class AiChatComponent {
       content: message,
       timestamp: new Date()
     };
-    this.messages.set([...this.messages(), userMessage]);
+    const updatedMessages = [...this.messages(), userMessage];
+    this.messages.set(updatedMessages);
+    this.saveChatHistory(updatedMessages);
     
     // Clear input and error
     this.userInput = '';
@@ -76,15 +89,28 @@ export class AiChatComponent {
     this.isLoading.set(true);
     this.scrollToBottom();
 
-    // Call AI service
-    this.aiChatService.sendMessage(message).subscribe({
+    // Prepare conversation history with truncation to prevent token overflow
+    // Keep only last N messages to avoid hitting token limits and reduce costs
+    const allMessages = this.messages();
+    const recentMessages = allMessages.slice(-this.MAX_HISTORY_MESSAGES);
+    const history = recentMessages.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+
+    console.log(`[Chat] Sending message with ${history.length}/${allMessages.length} messages as history`);
+
+    // Call AI service with truncated history
+    this.aiChatService.sendMessage(message, history).subscribe({
       next: (response) => {
         const aiMessage: ChatMessage = {
           role: 'assistant',
           content: response.reply,
           timestamp: new Date()
         };
-        this.messages.set([...this.messages(), aiMessage]);
+        const updatedMessages = [...this.messages(), aiMessage];
+        this.messages.set(updatedMessages);
+        this.saveChatHistory(updatedMessages);
         this.isLoading.set(false);
         this.scrollToBottom();
       },
@@ -176,7 +202,9 @@ export class AiChatComponent {
       content: `📄 Uploading "${file.name}"...`,
       timestamp: new Date()
     };
-    this.messages.set([...this.messages(), uploadMessage]);
+    const updatedMessages = [...this.messages(), uploadMessage];
+    this.messages.set(updatedMessages);
+    this.saveChatHistory(updatedMessages);
     this.scrollToBottom();
 
     // Get optional message from input
@@ -195,7 +223,9 @@ export class AiChatComponent {
           content: `✅ Successfully processed "${file.name}" (${response.document.numChunks} chunks from ${response.document.numPages} pages). You can now ask questions about this document!`,
           timestamp: new Date()
         };
-        this.messages.set([...this.messages(), successMessage]);
+        const updatedMessages = [...this.messages(), successMessage];
+        this.messages.set(updatedMessages);
+        this.saveChatHistory(updatedMessages);
         
         // If there was a message with the upload, process it
         if (messageText) {
@@ -217,7 +247,9 @@ export class AiChatComponent {
           content: `❌ Failed to upload "${file.name}": ${errorMsg}`,
           timestamp: new Date()
         };
-        this.messages.set([...this.messages(), errorMessage]);
+        const updatedMessages = [...this.messages(), errorMessage];
+        this.messages.set(updatedMessages);
+        this.saveChatHistory(updatedMessages);
       }
     });
   }
@@ -229,5 +261,71 @@ export class AiChatComponent {
     this.uploadedDocuments.set(
       this.uploadedDocuments().filter(doc => doc !== filename)
     );
+  }
+
+  /**
+   * Save chat history to localStorage
+   * Includes error handling for quota exceeded or disabled storage
+   */
+  private saveChatHistory(messages: ChatMessage[]): void {
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(messages));
+      console.log(`[Chat] Saved ${messages.length} messages to localStorage`);
+    } catch (error) {
+      // Handle localStorage errors (quota exceeded, disabled, etc.)
+      console.warn('[Chat] Failed to save history to localStorage:', error);
+      
+      // If quota exceeded, try saving last 10 messages only
+      if (error instanceof Error && error.name === 'QuotaExceededError') {
+        try {
+          const recentMessages = messages.slice(-10);
+          localStorage.setItem(this.STORAGE_KEY, JSON.stringify(recentMessages));
+          console.log('[Chat] Saved recent 10 messages after quota error');
+        } catch (retryError) {
+          console.error('[Chat] Failed to save even truncated history');
+        }
+      }
+    }
+  }
+
+  /**
+   * Load chat history from localStorage on component init
+   */
+  private loadChatHistory(): void {
+    try {
+      const savedHistory = localStorage.getItem(this.STORAGE_KEY);
+      if (savedHistory) {
+        const messages = JSON.parse(savedHistory) as ChatMessage[];
+        
+        // Validate loaded data
+        if (Array.isArray(messages) && messages.length > 0) {
+          // Restore Date objects for timestamps
+          const restoredMessages = messages.map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
+          }));
+          
+          this.messages.set(restoredMessages);
+          console.log(`[Chat] Loaded ${messages.length} messages from localStorage`);
+          
+          // Scroll to bottom after loading history
+          setTimeout(() => this.scrollToBottom(), 100);
+        }
+      }
+    } catch (error) {
+      console.warn('[Chat] Failed to load history from localStorage:', error);
+      // Clear corrupted data
+      localStorage.removeItem(this.STORAGE_KEY);
+    }
+  }
+
+  /**
+   * Clear chat history (both in-memory and localStorage)
+   */
+  clearChatHistory(): void {
+    this.messages.set([]);
+    this.uploadedDocuments.set([]);
+    localStorage.removeItem(this.STORAGE_KEY);
+    console.log('[Chat] Cleared chat history');
   }
 }

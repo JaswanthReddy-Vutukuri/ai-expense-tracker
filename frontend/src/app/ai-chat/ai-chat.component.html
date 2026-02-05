@@ -17,9 +17,19 @@
       <mat-icon class="chat-icon">smart_toy</mat-icon>
       <span class="chat-title">AI Assistant</span>
     </div>
-    <button mat-icon-button (click)="toggleChat()" aria-label="Close chat">
-      <mat-icon>close</mat-icon>
-    </button>
+    <div class="chat-header-actions">
+      <button 
+        mat-icon-button 
+        (click)="clearChatHistory()" 
+        [disabled]="messages().length === 0"
+        matTooltip="Clear chat history"
+        aria-label="Clear chat history">
+        <mat-icon>delete_sweep</mat-icon>
+      </button>
+      <button mat-icon-button (click)="toggleChat()" aria-label="Close chat">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
   </div>
 
   <!-- Uploaded Documents Bar -->
