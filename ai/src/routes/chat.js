@@ -80,12 +80,63 @@ router.post('/chat', authMiddleware, async (req, res, next) => {
     requestLogger.info('Processing chat message', {
       messageLength: message.length,
       historyLength: history?.length || 0,
-      messagePreview: message.substring(0, 100)
+      messagePreview: message.substring(0, 100),
+      hasHistory: !!history,
+      historyIsArray: Array.isArray(history)
     });
 
-    // Step 1: Classify intent
-    const intent = await routeRequest(message);
-    requestLogger.info('Intent classified', { intent });
+    // Check if there's a pending action in conversation history (for confirmation workflows)
+    let hasPendingAction = false;
+    let isSimpleResponse = false;
+    
+    if (history && history.length > 0) {
+      // Find the last assistant message (should be the most recent one with pending action)
+      const lastAssistantMessage = [...history].reverse().find(msg => msg.role === 'assistant');
+      
+      if (lastAssistantMessage) {
+        requestLogger.info('Checking last assistant message for pending action', {
+          lastMessageLength: lastAssistantMessage?.content?.length,
+          lastMessagePreview: lastAssistantMessage?.content?.substring(0, 100)
+        });
+        
+        if (lastAssistantMessage.content) {
+          hasPendingAction = /<!--PENDING_ACTION:[\s\S]+?-->/.test(lastAssistantMessage.content);
+          isSimpleResponse = /^(yes|no|ok|okay|confirm|cancel|proceed|abort|delete)$/i.test(message.trim());
+          
+          requestLogger.info('Pending action detection result', {
+            hasPendingAction,
+            isSimpleResponse,
+            willSkipClassification: hasPendingAction && isSimpleResponse,
+            currentMessage: message.trim()
+          });
+          
+          if (hasPendingAction && isSimpleResponse) {
+            requestLogger.info('Detected simple response to pending action - skipping intent classification', {
+              message: message.trim(),
+              hasPendingAction
+            });
+          }
+        }
+      } else {
+        requestLogger.info('No assistant message found in history');
+      }
+    } else {
+      requestLogger.info('No history provided or history is empty', {
+        historyProvided: !!history,
+        historyLength: history?.length || 0
+      });
+    }
+
+    // Step 1: Classify intent (skip if responding to pending action)
+    let intent;
+    if (hasPendingAction && isSimpleResponse) {
+      // User is responding to a confirmation request - route to TRANSACTIONAL
+      intent = 'TRANSACTIONAL';
+      requestLogger.info('Routing confirmation response directly to TRANSACTIONAL');
+    } else {
+      intent = await routeRequest(message);
+      requestLogger.info('Intent classified', { intent });
+    }
 
     // PRODUCTION: Create context object for handlers
     const context = { traceId, userId };

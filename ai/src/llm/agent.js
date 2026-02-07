@@ -244,12 +244,62 @@ export const processChatMessage = async (userMessage, authToken, history = [], c
     messages.push(...history);
   }
   
-  // Add current user message
-  messages.push({ role: "user", content: userMessage });
+  // Extract pending_action from the last assistant message if present
+  // This handles cases where user responds with just "yes" or "no"
+  let extractedPendingAction = null;
+  if (history && history.length > 0) {
+    // Find the last assistant message in history
+    const lastAssistantMessage = [...history].reverse().find(msg => msg.role === 'assistant');
+    
+    if (lastAssistantMessage && lastAssistantMessage.content) {
+      const pendingActionMatch = lastAssistantMessage.content.match(/<!--PENDING_ACTION:([\s\S]+?)-->/);
+      if (pendingActionMatch) {
+        try {
+          extractedPendingAction = JSON.parse(pendingActionMatch[1]);
+          requestLogger.info('Extracted pending action from conversation history', {
+            pendingTool: extractedPendingAction.tool
+          });
+        } catch (e) {
+          requestLogger.warn('Failed to parse pending action from history', { error: e.message });
+        }
+      }
+    }
+  }
+  
+  // Add current user message with optional pending action context
+  let enhancedUserMessage = userMessage;
+  if (extractedPendingAction) {
+    // User is likely responding to a confirmation request
+    // Check if message is a simple confirmation
+    const simpleConfirmation = /^(yes|no|ok|okay|confirm|cancel|proceed|abort|delete)$/i.test(userMessage.trim());
+    
+    if (simpleConfirmation) {
+      const isConfirming = /^(yes|ok|okay|confirm|proceed|delete)$/i.test(userMessage.trim());
+      
+      if (isConfirming) {
+        // Inject the pending action so LLM knows what to call
+        enhancedUserMessage = `${userMessage}\n\n[CONTEXT: User is confirming the pending operation. Call ${extractedPendingAction.tool} with arguments: ${JSON.stringify(extractedPendingAction.arguments)}]`;
+        requestLogger.info('Enhanced simple confirmation with pending action context', {
+          originalMessage: userMessage,
+          pendingTool: extractedPendingAction.tool
+        });
+      } else {
+        // User is canceling
+        enhancedUserMessage = `${userMessage}\n\n[CONTEXT: User is declining the pending ${extractedPendingAction.tool} operation. Do NOT call any tools, just acknowledge the cancellation.]`;
+        requestLogger.info('User declined pending operation', {
+          originalMessage: userMessage,
+          declinedTool: extractedPendingAction.tool
+        });
+      }
+    }
+  }
+  
+  messages.push({ role: "user", content: enhancedUserMessage });
 
   // Tool iteration tracking
   let toolIterationCount = 0;
   let totalTokensUsed = 0;
+  let pendingAction = null; // Track any pending confirmation actions
 
   try {
     // First call to determine if tools are needed
@@ -396,8 +446,18 @@ export const processChatMessage = async (userMessage, authToken, history = [], c
             { traceId, userId } // Pass context for logging
           );
 
+          // Check if tool returned a pending_action (for confirmation workflows)
+          if (toolResult && toolResult.pending_action) {
+            pendingAction = toolResult.pending_action;
+            requestLogger.info('Tool returned pending action requiring user confirmation', {
+              toolName: functionName,
+              pendingTool: pendingAction.tool
+            });
+          }
+
           requestLogger.info('Tool execution successful', {
-            toolName: functionName
+            toolName: functionName,
+            hasPendingAction: !!toolResult?.pending_action
           });
 
           // Add tool result to conversation
@@ -508,10 +568,21 @@ export const processChatMessage = async (userMessage, authToken, history = [], c
     requestLogger.info('Chat processing complete', {
       duration,
       toolIterations: toolIterationCount,
-      totalTokens: totalTokensUsed
+      totalTokens: totalTokensUsed,
+      hasPendingAction: !!pendingAction
     });
 
-    return responseMessage.content || "I've processed your request successfully.";
+    let finalResponse = responseMessage.content || "I've processed your request successfully.";
+    
+    // If there's a pending action, embed it in the response for the next turn
+    // Format: <!--PENDING_ACTION:{json}-->
+    if (pendingAction) {
+      const pendingActionJson = JSON.stringify(pendingAction);
+      finalResponse += `\n\n<!--PENDING_ACTION:${pendingActionJson}-->`;
+      requestLogger.debug('Embedded pending action in response', { pendingAction });
+    }
+    
+    return finalResponse;
 
   } catch (error) {
     const duration = Date.now() - startTime;

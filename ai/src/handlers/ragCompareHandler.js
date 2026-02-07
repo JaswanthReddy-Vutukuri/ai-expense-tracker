@@ -144,10 +144,26 @@ export const handleRagCompare = async (userMessage, authToken, userId, options =
         dataLength: response?.data?.length || 0
       });
       
-      return returnStructured
-        ? { matched: [], pdf_only: pdfExpenses, app_only: [], error: 'No app data' }
-        : "You don't have any expenses tracked in the app yet. The comparison requires both PDF and app data.";
+      // For structured reconciliation: empty app = all PDF expenses should sync to app
+      // This is NOT an error state - it's a valid scenario for first-time sync
+      if (returnStructured) {
+        console.log('[RAG Compare Handler] No app data - returning all PDF expenses as pdf_only for sync');
+        return {
+          matched: [],
+          pdf_only: pdfExpenses,  // All PDF expenses need to be added to app
+          app_only: [],
+          summary: {
+            pdfTotal: { count: pdfExpenses.length, amount: pdfExpenses.reduce((sum, e) => sum + parseFloat(e.amount || 0), 0) },
+            appTotal: { count: 0, amount: 0 }
+          }
+        };
+      }
+      
+      // For natural language comparison: explain the situation
+      return "You don't have any expenses tracked in the app yet. The comparison requires both PDF and app data.";
     }
+    
+    console.log(`[RAG Compare Handler] Comparing ${pdfExpenses.length} PDF expenses with ${appExpenses.length} app expenses`);
     
     console.log(`[RAG Compare Handler] Comparing ${pdfExpenses.length} PDF expenses with ${appExpenses.length} app expenses`);
     

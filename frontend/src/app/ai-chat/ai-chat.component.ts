@@ -73,7 +73,18 @@ export class AiChatComponent {
       return;
     }
 
-    // Add user message to chat
+    // Prepare conversation history BEFORE adding current message
+    // History should contain only PREVIOUS messages, not the current one
+    const allMessages = this.messages();
+    const recentMessages = allMessages.slice(-this.MAX_HISTORY_MESSAGES);
+    const history = recentMessages.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+
+    console.log(`[Chat] Sending message with ${history.length}/${allMessages.length} messages as history (excluding current)`);
+
+    // Add user message to chat AFTER preparing history
     const userMessage: ChatMessage = {
       role: 'user',
       content: message,
@@ -89,23 +100,17 @@ export class AiChatComponent {
     this.isLoading.set(true);
     this.scrollToBottom();
 
-    // Prepare conversation history with truncation to prevent token overflow
-    // Keep only last N messages to avoid hitting token limits and reduce costs
-    const allMessages = this.messages();
-    const recentMessages = allMessages.slice(-this.MAX_HISTORY_MESSAGES);
-    const history = recentMessages.map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }));
-
-    console.log(`[Chat] Sending message with ${history.length}/${allMessages.length} messages as history`);
-
-    // Call AI service with truncated history
+    // Call AI service with history (excluding current message)
     this.aiChatService.sendMessage(message, history).subscribe({
       next: (response) => {
+        // Store full response (with hidden metadata) for history
+        // But display cleaned version to user
+        const fullContent = response.reply;
+        const displayContent = this.cleanPendingActionMarker(fullContent);
+        
         const aiMessage: ChatMessage = {
           role: 'assistant',
-          content: response.reply,
+          content: fullContent, // Store full content with metadata for next turn
           timestamp: new Date()
         };
         const updatedMessages = [...this.messages(), aiMessage];
@@ -328,4 +333,17 @@ export class AiChatComponent {
     localStorage.removeItem(this.STORAGE_KEY);
     console.log('[Chat] Cleared chat history');
   }
-}
+  /**
+   * Remove hidden pending action markers from message content for display
+   * Markers format: <!--PENDING_ACTION:{json}-->
+   */
+  private cleanPendingActionMarker(content: string): string {
+    return content.replace(/<!--PENDING_ACTION:[\s\S]+?-->/g, '').trim();
+  }
+
+  /**
+   * Get display content for a message (removes hidden metadata)
+   */
+  getDisplayContent(message: ChatMessage): string {
+    return this.cleanPendingActionMarker(message.content);
+  }}
