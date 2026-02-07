@@ -1,7 +1,7 @@
 /**
  * EXPENSE VALIDATOR TESTS
  * 
- * AUDIT FIX: Part 9 - Test Coverage
+ * Test Coverage
  * Tests deterministic business logic validation
  * Ensures category normalization, date parsing, and amount validation work correctly
  */

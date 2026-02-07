@@ -26,31 +26,55 @@ exports.createExpense = async (req, res, next) => {
 
 exports.getExpenses = async (req, res, next) => {
   try {
-    const { category_id, startDate, endDate } = req.query;
+    const { category_id, startDate, endDate, page = 1, limit = 10, sortBy = 'date', sortOrder = 'desc' } = req.query;
     const db = await getDb();
     
-    let query = `
-      SELECT e.*, c.name as category_name 
-      FROM expenses e 
-      JOIN categories c ON e.category_id = c.id 
-      WHERE e.user_id = ?
-    `;
+    // Build base WHERE clause
+    let whereClause = 'WHERE e.user_id = ?';
     const params = [req.user.id];
 
     if (category_id) {
-      query += ' AND e.category_id = ?';
+      whereClause += ' AND e.category_id = ?';
       params.push(category_id);
     }
 
     if (startDate && endDate) {
-      query += ' AND e.date BETWEEN ? AND ?';
+      whereClause += ' AND e.date BETWEEN ? AND ?';
       params.push(startDate, endDate);
     }
 
-    query += ' ORDER BY e.date DESC';
+    // Validate and build ORDER BY clause
+    const allowedSortFields = ['date', 'amount', 'description', 'category_name'];
+    const validSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'date';
+    const validSortOrder = sortOrder.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    const orderByColumn = validSortBy === 'category_name' ? 'c.name' : `e.${validSortBy}`;
 
-    const expenses = await db.all(query, params);
-    res.json(expenses);
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM expenses e
+      ${whereClause}
+    `;
+    const { total } = await db.get(countQuery, params);
+
+    // Get paginated data
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const dataQuery = `
+      SELECT e.*, c.name as category_name 
+      FROM expenses e 
+      JOIN categories c ON e.category_id = c.id 
+      ${whereClause}
+      ORDER BY ${orderByColumn} ${validSortOrder}
+      LIMIT ? OFFSET ?
+    `;
+    const expenses = await db.all(dataQuery, [...params, parseInt(limit), offset]);
+    
+    res.json({
+      data: expenses,
+      total,
+      page: parseInt(page),
+      limit: parseInt(limit)
+    });
   } catch (error) {
     next(error);
   }

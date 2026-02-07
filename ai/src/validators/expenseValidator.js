@@ -1,7 +1,7 @@
 /**
  * EXPENSE VALIDATOR MODULE
  * 
- * AUDIT FIX: Part 3 - Business Logic Extraction from LLM Prompts
+ * Business Logic Extraction from LLM Prompts
  * 
  * Purpose:
  * - Provides deterministic validation and normalization of expense data
@@ -24,7 +24,7 @@
 /**
  * Deterministic category normalization with exhaustive mapping
  * 
- * AUDIT FIX: Replaces LLM-based category mapping in systemPrompt.js
+ * Replaces LLM-based category mapping in systemPrompt.js
  * This ensures "food" ALWAYS maps to "Food & Dining", not sometimes "Food", sometimes "Dining"
  * 
  * @param {string} input - Raw category from LLM or user
@@ -39,7 +39,7 @@ export const normalizeCategory = (input) => {
   const normalized = input.toLowerCase().trim();
   
   // Exhaustive category mapping (deterministic)
-  // AUDIT REQUIREMENT: All category logic must be in code, not LLM prompt
+  // All category logic must be in code, not LLM prompt
   // Maps to backend categories: Food, Transport, Entertainment, Shopping, Bills, Health, Other
   const categoryMap = {
     // Food
@@ -141,7 +141,7 @@ export const normalizeCategory = (input) => {
 /**
  * Deterministic date parsing with explicit rules
  * 
- * AUDIT FIX: Replaces LLM-based date parsing in systemPrompt.js
+ * Replaces LLM-based date parsing in systemPrompt.js
  * This ensures "today" ALWAYS returns current date, not "depends on context"
  * 
  * @param {string} input - Raw date string (e.g., "today", "yesterday", "2026-02-01")
@@ -207,7 +207,7 @@ export const parseDate = (input, referenceDate = new Date()) => {
 /**
  * Amount validation with business rules
  * 
- * AUDIT FIX: Ensures amounts are positive, numeric, and within reasonable limits
+ * Ensures amounts are positive, numeric, and within reasonable limits
  * Prevents negative amounts, NaN, Infinity from reaching backend
  * 
  * @param {number|string} amount - Raw amount value
@@ -249,7 +249,7 @@ export const validateAmount = (amount) => {
 /**
  * Description validation and sanitization
  * 
- * AUDIT FIX: Ensures descriptions are non-empty and within length limits
+ * Ensures descriptions are non-empty and within length limits
  * 
  * @param {string} description - Raw description text
  * @returns {string} Validated and sanitized description

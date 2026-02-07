@@ -68,7 +68,7 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req, res, n
     }
 
     // Step 1: Extract text from PDF with page metadata
-    // AUDIT FIX: Part 4 - Add Page Metadata for better attribution
+    // Add Page Metadata for better attribution
     const pages = await extractTextByPage(req.file.buffer);
     
     if (!pages || pages.length === 0) {
@@ -82,7 +82,7 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req, res, n
     console.log(`[Upload Route] Extracted ${numPages} pages`);
     
     // Step 2: Chunk each page separately (preserves page attribution)
-    // AUDIT FIX: Chunk size now 1500 chars (see chunker.js fix)
+    // Chunk size now 1500 chars (see chunker.js fix)
     const allChunks = [];
     for (const page of pages) {
       const cleanedText = cleanExtractedText(page.text);
@@ -94,7 +94,7 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req, res, n
       
       const pageChunks = chunkText(cleanedText);
       
-      // AUDIT FIX: Attach page number to each chunk for citation
+      // Attach page number to each chunk for citation
       pageChunks.forEach(chunk => {
         chunk.pageNumber = page.pageNumber;
         allChunks.push(chunk);
@@ -117,12 +117,12 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req, res, n
     console.log(`[Upload Route] Generated ${embeddings.length} embeddings`);
     
     // Step 4: Store in vector database
-    // AUDIT FIX: Part 5 - Pass userId for user isolation
+    // Pass userId for user isolation
     const documentId = await storeDocument({
       filename: req.file.originalname,
       chunks: allChunks,
       embeddings,
-      userId: req.user.userId,  // AUDIT FIX: Track document owner
+      userId: req.user.userId,  // Track document owner
       metadata: {
         numPages,
         numChunks: allChunks.length,

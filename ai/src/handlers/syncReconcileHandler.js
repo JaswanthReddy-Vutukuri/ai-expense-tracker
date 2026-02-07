@@ -163,8 +163,13 @@ export const handleSyncReconcile = async (userMessage, authToken, userId, option
     
     console.log('[Sync Handler] Synced report generated');
     console.log(`  - Report type: ${reportResult.reportType}`);
-    console.log(`  - CSV path: ${reportResult.files.csv}`);
-    console.log(`  - HTML path: ${reportResult.files.html}`);
+    
+    if (reportResult.success && reportResult.files) {
+      console.log(`  - CSV path: ${reportResult.files.csv.path}`);
+      console.log(`  - HTML path: ${reportResult.files.html.path}`);
+    } else {
+      console.warn(`  - Report generation failed: ${reportResult.error || 'Unknown error'}`);
+    }
     
     // ========================================================================
     // STAGE 6: RESPOND

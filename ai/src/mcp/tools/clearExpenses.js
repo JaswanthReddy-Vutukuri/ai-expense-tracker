@@ -35,14 +35,20 @@ export const clearExpensesTool = {
     if (args.date_to) params.end_date = args.date_to;
     if (args.category) params.category = args.category;
     
-    const expenses = await backendClient.get('/expenses', params, token);
+    // Backend returns paginated response: { data: [...], total, page, limit }
+    const response = await backendClient.get('/expenses', { ...params, limit: 1000 }, token);
     
-    if (!expenses || expenses.length === 0) {
+    // Extract expenses array from paginated response
+    const expenses = response?.data || response || [];
+    
+    if (!Array.isArray(expenses) || expenses.length === 0) {
       return {
         message: "No expenses found matching the criteria.",
         deleted_count: 0
       };
     }
+    
+    console.log(`[clear_expenses] Found ${expenses.length} expenses to delete`);
     
     // Delete each expense
     const deletePromises = expenses.map(expense => 

@@ -77,7 +77,7 @@ export const cleanExtractedText = (text) => {
 /**
  * Extracts text from PDF with page-level metadata
  * 
- * AUDIT FIX: Part 4 - Add Page Metadata
+ * Add Page Metadata
  * Enables attribution of expenses to specific PDF pages
  * Improves user experience with page citations
  * 

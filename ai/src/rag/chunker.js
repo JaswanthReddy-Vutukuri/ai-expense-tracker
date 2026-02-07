@@ -20,7 +20,7 @@
 /**
  * Splits text into overlapping chunks
  * 
- * AUDIT FIX: Part 4 - Correct Chunk Size Configuration
+ * Correct Chunk Size Configuration
  * Original: 500 chars ≈ 125 tokens (4x too small)
  * Fixed: 1500 chars ≈ 375 tokens (midpoint of 300-500 requirement)
  * Character-to-token ratio is approximately 4:1 for English text

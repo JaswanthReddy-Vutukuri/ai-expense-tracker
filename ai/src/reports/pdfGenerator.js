@@ -329,13 +329,28 @@ export const generateSyncedExpenseReport = async (authToken, userId, addToPdfExp
   
   try {
     // Step 1: Fetch all current app expenses via MCP tool
-    const appExpenses = await listExpensesTool.run({}, authToken);
+    // listExpensesTool now returns: { expenses: [...], total: N, showing: N }
+    const listResult = await listExpensesTool.run({ limit: 1000 }, authToken);
+    
+    console.log('[PDF Generator] List result:', {
+      hasExpenses: !!listResult?.expenses,
+      expensesIsArray: Array.isArray(listResult?.expenses),
+      expensesLength: listResult?.expenses?.length || 0,
+      total: listResult?.total
+    });
+    
+    // Extract expenses array from structured response
+    const appExpenses = listResult?.expenses || [];
     
     if (!Array.isArray(appExpenses)) {
-      console.warn('[PDF Generator] No app expenses returned');
+      console.warn('[PDF Generator] No app expenses returned or invalid format', { 
+        listResultType: typeof listResult,
+        listResult 
+      });
       return {
         success: false,
-        error: 'Failed to fetch app expenses'
+        error: 'Failed to fetch app expenses',
+        reportType: 'SYNCED'
       };
     }
     
@@ -455,13 +470,21 @@ export const generateExpenseReport = async (authToken, userId, options = {}) => 
   
   try {
     // Step 1: Fetch expenses via MCP tool (enforces auth and filtering)
-    const expenses = await listExpensesTool.run({}, authToken);
+    // listExpensesTool now returns: { expenses: [...], total: N, showing: N }
+    const listResult = await listExpensesTool.run({ limit: 1000 }, authToken);
+    
+    // Extract expenses array from structured response
+    const expenses = listResult?.expenses || [];
     
     if (!Array.isArray(expenses) || expenses.length === 0) {
-      console.warn('[PDF Generator] No expenses found to generate report');
+      console.warn('[PDF Generator] No expenses found to generate report', {
+        hasListResult: !!listResult,
+        expensesLength: expenses?.length || 0
+      });
       return {
         success: false,
-        error: 'No expenses available to generate report'
+        error: 'No expenses available to generate report',
+        reportType: 'STANDARD'
       };
     }
     

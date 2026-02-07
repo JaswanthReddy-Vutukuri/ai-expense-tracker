@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatTableModule } from '@angular/material/table';
 import { MatPaginatorModule, MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatSortModule, MatSort, Sort } from '@angular/material/sort';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
@@ -19,6 +20,7 @@ import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dial
     RouterLink, 
     MatTableModule, 
     MatPaginatorModule, 
+    MatSortModule,
     MatButtonModule, 
     MatIconModule,
     MatDialogModule,
@@ -34,9 +36,9 @@ import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dial
       </div>
 
       <mat-card>
-        <table mat-table [dataSource]="expenses">
+        <table mat-table [dataSource]="expenses" matSort (matSortChange)="handleSortChange($event)">
           <ng-container matColumnDef="date">
-            <th mat-header-cell *matHeaderCellDef> Date </th>
+            <th mat-header-cell *matHeaderCellDef mat-sort-header="date"> Date </th>
             <td mat-cell *matCellDef="let element"> {{element.date | date}} </td>
           </ng-container>
 
@@ -93,6 +95,8 @@ export class ExpenseListComponent implements OnInit {
   total = 0;
   pageSize = 10;
   pageIndex = 0;
+  sortBy = 'date';
+  sortOrder: 'asc' | 'desc' = 'desc';
 
   constructor(private expenseService: ExpenseService, private dialog: MatDialog) {}
 
@@ -101,15 +105,22 @@ export class ExpenseListComponent implements OnInit {
   }
 
   loadExpenses() {
-    this.expenseService.getExpenses(this.pageIndex, this.pageSize).subscribe(expenses => {
-      this.expenses = expenses;
-      this.total = expenses.length;
+    this.expenseService.getExpenses(this.pageIndex, this.pageSize, this.sortBy, this.sortOrder).subscribe(response => {
+      this.expenses = response.data;
+      this.total = response.total;
     });
   }
 
   handlePageEvent(e: PageEvent) {
     this.pageIndex = e.pageIndex;
     this.pageSize = e.pageSize;
+    this.loadExpenses();
+  }
+
+  handleSortChange(sort: Sort) {
+    this.sortBy = sort.active || 'date';
+    this.sortOrder = sort.direction || 'desc';
+    this.pageIndex = 0; // Reset to first page on sort
     this.loadExpenses();
   }
 

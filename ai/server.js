@@ -11,11 +11,9 @@ import { errorHandler } from './src/middleware/errorHandler.js';
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// AUDIT FIX: Part 10 - Security Hardening
 // Add helmet for security headers
 app.use(helmet());
 
-// AUDIT FIX: Part 10 - CORS Configuration (no longer wide open)
 // Restrict origins to environment-configured values only
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
@@ -36,7 +34,6 @@ app.use(cors({
   credentials: true
 }));
 
-// AUDIT FIX: Part 10 - Rate Limiting (prevent DOS attacks)
 // Limit requests per IP to prevent abuse and cost explosion
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
@@ -49,7 +46,6 @@ const limiter = rateLimit({
 // Apply rate limiting to all AI routes
 app.use('/ai', limiter);
 
-// AUDIT FIX: Part 10 - Explicit Body Size Limits (prevent DOS via large payloads)
 app.use(express.json({ limit: '1mb' }));
 
 // Request logging
@@ -78,5 +74,5 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 AI Orchestrator running on http://localhost:${PORT}`);
-  console.log(`🔗 Backend URL: ${process.env.BACKEND_URL || 'http://localhost:3000'}`);
+  console.log(`🔗 Backend URL: ${process.env.BACKEND_BASE_URL || 'http://localhost:3000'}`);
 });

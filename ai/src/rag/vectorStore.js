@@ -94,7 +94,7 @@ const generateDocumentId = () => {
 /**
  * Stores a new document with its chunks and embeddings
  * 
- * AUDIT FIX: Part 5 - User Isolation
+ * User Isolation
  * Now requires and stores userId to enable per-user document filtering
  * 
  * @param {Object} document - Document data
@@ -108,7 +108,7 @@ const generateDocumentId = () => {
 export const storeDocument = async (document) => {
   const { filename, chunks, embeddings, userId, metadata = {} } = document;
   
-  // AUDIT FIX: Enforce userId requirement for multi-tenancy
+  // Enforce userId requirement for multi-tenancy
   // If userId is null (JWT_SECRET not configured), allow but warn
   if (userId === undefined) {
     throw new Error('userId parameter is required for document storage');
@@ -137,7 +137,7 @@ export const storeDocument = async (document) => {
     chunks: enrichedChunks,
     metadata: {
       ...metadata,
-      userId,  // AUDIT FIX: Store userId for filtering
+      userId,  // Store userId for filtering
       storedAt: new Date().toISOString()
     }
   };
@@ -158,7 +158,7 @@ export const storeDocument = async (document) => {
 /**
  * Retrieves all chunks from documents owned by specified user
  * 
- * AUDIT FIX: Part 5 - User Isolation in Vector Store
+ * User Isolation
  * Filters documents by userId to prevent cross-user data exposure
  * This is the CRITICAL security fix - prevents User A from seeing User B's PDFs
  * 
@@ -166,7 +166,7 @@ export const storeDocument = async (document) => {
  * @returns {Array} Chunks belonging to the specified user only
  */
 export const getAllChunks = (userId) => {
-  // AUDIT FIX: Enforce userId parameter for security
+  // Enforce userId parameter for security
   // If userId is null (JWT_SECRET not configured), return all chunks (backward compatibility)
   if (userId === undefined) {
     throw new Error('userId parameter is required for getAllChunks');
@@ -189,7 +189,7 @@ export const getAllChunks = (userId) => {
   
   const allChunks = [];
   
-  // AUDIT FIX: Filter documents by userId before returning chunks
+  // Filter documents by userId before returning chunks
   for (const doc of vectorStore.documents) {
     // Skip documents not owned by this user
     if (doc.metadata.userId !== userId) {
@@ -294,7 +294,7 @@ export const getVectorStoreStats = () => {
 /**
  * Extracts expense data from stored documents
  * 
- * AUDIT FIX: Part 5 - User Isolation in Expense Extraction
+ * User Isolation in Expense Extraction
  * Filters documents by userId before extracting expenses
  * 
  * Used by comparison handler
@@ -302,7 +302,7 @@ export const getVectorStoreStats = () => {
  * @returns {Array} Extracted expenses from user's documents only
  */
 export const extractExpensesFromVectorStore = async (userId) => {
-  // AUDIT FIX: Enforce userId for security
+  // Enforce userId for security
   if (userId === undefined) {
     throw new Error('userId parameter is required for extractExpensesFromVectorStore');
   }
@@ -336,7 +336,7 @@ export const extractExpensesFromVectorStore = async (userId) => {
   
   const expenses = [];
   
-  // AUDIT FIX: Filter documents by userId
+  // Filter documents by userId
   let userDocumentCount = 0;
   for (const doc of vectorStore.documents) {
     console.log(`[Vector Store] Document ${doc.id}: userId=${doc.metadata.userId}, filename=${doc.filename}`);

@@ -12,11 +12,13 @@ export class ExpenseService {
 
   constructor(private http: HttpClient) {}
 
-  getExpenses(page = 0, limit = 10): Observable<Expense[]> {
+  getExpenses(page = 0, limit = 10, sortBy = 'date', sortOrder: 'asc' | 'desc' = 'desc'): Observable<{data: Expense[], total: number, page: number, limit: number}> {
     const params = new HttpParams()
       .set('page', (page + 1).toString())
-      .set('limit', limit.toString());
-    return this.http.get<Expense[]>(`${this.apiUrl}/expenses`, { params });
+      .set('limit', limit.toString())
+      .set('sortBy', sortBy)
+      .set('sortOrder', sortOrder);
+    return this.http.get<{data: Expense[], total: number, page: number, limit: number}>(`${this.apiUrl}/expenses`, { params });
   }
 
   getExpenseById(id: number): Observable<Expense> {

@@ -6,8 +6,10 @@ import { handleRagQA } from '../handlers/ragQaHandler.js';
 import { handleRagCompare } from '../handlers/ragCompareHandler.js';
 import { handleClarification } from '../handlers/clarificationHandler.js';
 import { handleSyncReconcile } from '../handlers/syncReconcileHandler.js';
+import { createLogger, generateTraceId } from '../utils/logger.js';
 
 const router = express.Router();
+const logger = createLogger('chat-route');
 
 /**
  * Primary Chat Endpoint
@@ -19,22 +21,38 @@ const router = express.Router();
  * 1. Classify intent (TRANSACTIONAL, RAG_QA, RAG_COMPARE, CLARIFICATION)
  * 2. Route to appropriate handler
  * 3. Return natural language response
+ * 
+ * Production Hardening:
+ * --------------------
+ * - Trace ID generation for request correlation
+ * - Input validation (length limits, type checks)
+ * - User context propagation (userId, traceId)
+ * - Structured logging for observability
  */
 router.post('/chat', authMiddleware, async (req, res, next) => {
+  // PRODUCTION: Generate trace ID for request correlation
+  const traceId = generateTraceId();
+  const userId = req.user?.userId || null;
+  
+  // Create request-scoped logger
+  const requestLogger = logger.child({ traceId, userId });
+  
   try {
     const { message, history } = req.body;
 
-    // AUDIT FIX: Part 10 - Input Validation
+    // Input Validation
     if (!message || typeof message !== 'string') {
+      requestLogger.warn('Invalid message format', { providedType: typeof message });
       return res.status(400).json({ 
         error: 'Bad Request', 
         message: 'A valid string "message" property is required in the request body.' 
       });
     }
     
-    // AUDIT FIX: Enforce maximum message length to prevent DOS attacks
+    // Enforce maximum message length to prevent DOS attacks
     const MAX_MESSAGE_LENGTH = 10000;
     if (message.length > MAX_MESSAGE_LENGTH) {
+      requestLogger.warn('Message too long', { length: message.length, max: MAX_MESSAGE_LENGTH });
       return res.status(400).json({
         error: 'Bad Request',
         message: `Message too long (max ${MAX_MESSAGE_LENGTH} characters, got ${message.length})`
@@ -43,6 +61,7 @@ router.post('/chat', authMiddleware, async (req, res, next) => {
     
     // Enforce minimum message length
     if (message.trim().length === 0) {
+      requestLogger.warn('Empty message received');
       return res.status(400).json({
         error: 'Bad Request',
         message: 'Message cannot be empty'
@@ -51,52 +70,57 @@ router.post('/chat', authMiddleware, async (req, res, next) => {
     
     // Validate history format if provided
     if (history && !Array.isArray(history)) {
+      requestLogger.warn('Invalid history format', { providedType: typeof history });
       return res.status(400).json({
         error: 'Bad Request',
         message: 'History must be an array of message objects'
       });
     }
 
-    console.log(`[Chat Route] User ${req.user.userId} processing message: "${message.substring(0, 100)}..."`);
+    requestLogger.info('Processing chat message', {
+      messageLength: message.length,
+      historyLength: history?.length || 0,
+      messagePreview: message.substring(0, 100)
+    });
 
     // Step 1: Classify intent
     const intent = await routeRequest(message);
-    console.log(`[Chat Route] Routed to intent: ${intent}`);
+    requestLogger.info('Intent classified', { intent });
 
-    // Step 2: Route to appropriate handler
-    // AUDIT FIX: Pass userId to RAG handlers for user isolation
+    // PRODUCTION: Create context object for handlers
+    const context = { traceId, userId };
+
+    // Step 2: Route to appropriate handler with context
     let reply;
     
     switch (intent) {
       case 'TRANSACTIONAL':
-        reply = await handleTransactional(message, req.token, history);
+        reply = await handleTransactional(message, req.token, history, context);
         break;
       
       case 'RAG_QA':
-        // AUDIT FIX: Pass userId for user-scoped document search
-        reply = await handleRagQA(message, req.token, req.user.userId);
+        // User-scoped document search with context
+        reply = await handleRagQA(message, req.token, userId, context);
         break;
       
       case 'RAG_COMPARE':
-        // AUDIT FIX: Pass userId for user-scoped comparison
-        reply = await handleRagCompare(message, req.token, req.user.userId);
+        // User-scoped comparison with context
+        reply = await handleRagCompare(message, req.token, userId, context);
         break;
       
       case 'SYNC_RECONCILE':
-        // ENTERPRISE RECONCILIATION: Multi-stage pipeline
-        // Compare → Plan → Sync → Report
-        // All deterministic, fully logged, no LLM decisions
-        reply = await handleSyncReconcile(message, req.token, req.user.userId);
+        // Enterprise reconciliation with full context
+        reply = await handleSyncReconcile(message, req.token, userId, context);
         break;
       
       case 'CLARIFICATION':
-        reply = await handleClarification(message);
+        reply = await handleClarification(message, context);
         break;
       
       default:
         // Fallback to transactional
-        console.warn(`[Chat Route] Unknown intent "${intent}", defaulting to TRANSACTIONAL`);
-        reply = await handleTransactional(message, req.token);
+        requestLogger.warn('Unknown intent, defaulting to TRANSACTIONAL', { intent });
+        reply = await handleTransactional(message, req.token, history, context);
     }
     
     res.json({ reply, intent });

@@ -1,7 +1,7 @@
 /**
  * EXPENSE COMPARISON TESTS
  * 
- * AUDIT FIX: Part 9 - Test Coverage
+ * Test Coverage
  * Tests deterministic expense comparison logic (Jaccard similarity, matching)
  */
 

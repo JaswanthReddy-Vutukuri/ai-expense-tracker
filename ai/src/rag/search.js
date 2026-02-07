@@ -54,7 +54,7 @@ export const cosineSimilarity = (vecA, vecB) => {
 /**
  * Searches for similar chunks using cosine similarity
  * 
- * AUDIT FIX: Part 6 - User Isolation in Search
+ * User Isolation in Search
  * Now requires userId to filter search scope to user's documents only
  * 
  * @param {string} queryText - Search query
@@ -67,7 +67,7 @@ export const cosineSimilarity = (vecA, vecB) => {
 export const searchSimilarChunks = async (queryText, userId, topK = 5, options = {}) => {
   const { minSimilarity = 0.3 } = options;
   
-  // AUDIT FIX: Enforce userId for security
+  // Enforce userId for security
   // If userId is null (JWT_SECRET not configured), allow search but warn
   if (userId === undefined) {
     throw new Error('userId parameter is required for searchSimilarChunks');
@@ -79,7 +79,7 @@ export const searchSimilarChunks = async (queryText, userId, topK = 5, options =
   
   console.log(`[Similarity Search] User ${userId} searching for: "${queryText.substring(0, 50)}..."`);
   
-  // AUDIT FIX: Get only this user's chunks (not all users)
+  // Get only this user's chunks (not all users)
   const allChunks = getAllChunks(userId);
   
   if (allChunks.length === 0) {
@@ -117,7 +117,7 @@ export const searchSimilarChunks = async (queryText, userId, topK = 5, options =
     .sort((a, b) => b.similarity - a.similarity)
     .slice(0, topK);
   
-  // AUDIT FIX: Part 8 - Log Similarity Scores for observability
+  // Log Similarity Scores for observability
   const topScores = topResults.slice(0, 3).map(r => r.similarity.toFixed(4));
   console.log(`[Similarity Search] Found ${topResults.length} results above threshold ${minSimilarity}`);
   console.log(`[Similarity Search] Top ${topScores.length} scores: [${topScores.join(', ')}]`);

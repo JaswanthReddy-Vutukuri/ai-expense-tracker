@@ -76,7 +76,7 @@ Answer:`;
 /**
  * Handles RAG-based question answering
  * 
- * AUDIT FIX: Part 6 - User Isolation in RAG Query
+ * User Isolation in RAG Query
  * Now accepts userId and passes to search for user-scoped results
  * 
  * @param {string} userMessage - User's question about uploaded documents
@@ -87,13 +87,12 @@ Answer:`;
 export const handleRagQA = async (userMessage, authToken, userId) => {
   console.log(`[RAG QA Handler] Processing document question for user ${userId || 'unknown (JWT_SECRET not configured)'}`);
   
-  // AUDIT FIX: Validate userId parameter (allow null for backward compatibility)
   if (userId === undefined) {
     throw new Error('userId parameter is required for RAG QA');
   }
   
   try {
-    // AUDIT FIX: Pass userId to search for user-scoped retrieval
+    // Pass userId to search for user-scoped retrieval
     const topK = 5; // Number of chunks to retrieve
     const retrievedChunks = await searchSimilarChunks(userMessage, userId, topK);
     

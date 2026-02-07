@@ -65,7 +65,14 @@ export const getCategories = async (token, forceRefresh = false) => {
  * @returns {Promise<Object|null>} Category object or null if not found
  */
 export const findCategoryByName = async (normalizedName, token) => {
+  console.log('[Category Cache] Finding category', { normalizedName, hasToken: !!token });
+  
   const categories = await getCategories(token);
+  
+  console.log('[Category Cache] Available categories', { 
+    count: categories.length,
+    names: categories.map(c => c.name)
+  });
   
   const match = categories.find(cat => 
     cat.name.toLowerCase() === normalizedName.toLowerCase()
@@ -73,6 +80,8 @@ export const findCategoryByName = async (normalizedName, token) => {
   
   if (!match) {
     console.error(`[Category Cache] No match found for "${normalizedName}". Available: ${categories.map(c => c.name).join(', ')}`);
+  } else {
+    console.log('[Category Cache] Category matched', { name: match.name, id: match.id });
   }
   
   return match || null;

@@ -1,6 +1,9 @@
 import { backendClient } from '../../utils/backendClient.js';
 import { validateAmount, normalizeCategory, parseDate, validateDescription } from '../../validators/expenseValidator.js';
 import { findCategoryByName } from '../../utils/categoryCache.js';
+import { createLogger } from '../../utils/logger.js';
+
+const logger = createLogger('create-expense-tool');
 
 export const createExpenseTool = {
   definition: {
@@ -33,23 +36,40 @@ export const createExpenseTool = {
     }
   },
   run: async (args, token) => {
-    // AUDIT FIX: Part 3 - Validate and normalize BEFORE sending to backend
+    logger.info('create_expense tool called', { args, hasToken: !!token });
+    
+    // Validate and normalize BEFORE sending to backend
     // This ensures deterministic, predictable expense creation (not LLM-dependent)
     try {
+      logger.debug('Starting validation', { args });
+      
       const validatedAmount = validateAmount(args.amount);
       const normalizedCategory = normalizeCategory(args.category);
       const parsedDate = parseDate(args.expense_date || 'today');
       const validatedDescription = args.description ? validateDescription(args.description) : '';
       
-      console.log(`[Create Expense Tool] Validated: amount=${validatedAmount}, category="${normalizedCategory}", date=${parsedDate}`);
+      logger.info('Expense validated', { 
+        amount: validatedAmount, 
+        category: normalizedCategory, 
+        date: parsedDate,
+        description: validatedDescription
+      });
+      
+      logger.debug('Fetching category from backend', { normalizedCategory });
       
       // Fetch category from backend using cache
       const matchedCategory = await findCategoryByName(normalizedCategory, token);
       
       if (!matchedCategory) {
+        logger.error('Category not found in backend', { 
+          normalizedCategory,
+          error: `Category "${normalizedCategory}" not found` 
+        });
         // This shouldn't happen if validator is correct, but defensive check
         throw new Error(`Category "${normalizedCategory}" not found in backend. Please use one of: Food, Transport, Entertainment, Shopping, Bills, Health, Other`);
       }
+      
+      logger.info('Category matched', { categoryId: matchedCategory.id, categoryName: matchedCategory.name });
       
       // Map to backend format with validated values
       const backendPayload = {
@@ -59,11 +79,24 @@ export const createExpenseTool = {
         date: parsedDate
       };
       
-      return await backendClient.post('/expenses', backendPayload, token);
+      logger.info('Calling backend API', { 
+        endpoint: '/expenses',
+        payload: backendPayload,
+        hasToken: !!token
+      });
+      
+      const result = await backendClient.post('/expenses', backendPayload, token);
+      
+      logger.info('Backend API call successful', { result });
+      
+      return result;
       
     } catch (validationError) {
       // Return validation errors to agent so it can ask user for clarification
-      console.error(`[Create Expense Tool] Validation failed: ${validationError.message}`);
+      logger.error('Expense creation failed', { 
+        error: validationError.message,
+        stack: validationError.stack
+      });
       throw new Error(`Cannot create expense: ${validationError.message}`);
     }
   }

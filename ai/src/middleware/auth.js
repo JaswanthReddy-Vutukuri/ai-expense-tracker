@@ -1,7 +1,7 @@
 /**
  * Middleware to extract and validate JWT from Authorization header.
  * 
- * AUDIT FIX: Part 10 - User Isolation Implementation
+ * User Isolation Implementation
  * - Decodes JWT token to extract userId
  * - Verifies token signature and expiration
  * - Populates req.user with userId for RAG filtering
@@ -25,7 +25,7 @@ export const authMiddleware = (req, res, next) => {
   const token = authHeader.split(' ')[1];
   req.token = token;
   
-  // AUDIT FIX: Decode and verify JWT to extract userId (if JWT_SECRET is configured)
+  // Decode and verify JWT to extract userId (if JWT_SECRET is configured)
   if (process.env.JWT_SECRET) {
     try {
       // Decode JWT to extract userId for RAG filtering (critical for multi-tenancy)

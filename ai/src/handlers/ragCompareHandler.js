@@ -79,7 +79,7 @@ Keep it under 150 words.`;
 /**
  * Handles expense comparison between PDF and app data
  * 
- * AUDIT FIX: Part 6 - User Isolation in Comparison
+ * User Isolation in Comparison
  * RECONCILIATION UPDATE: Returns structured diff for downstream reconciliation
  * 
  * WHY STRUCTURED OUTPUT:
@@ -100,15 +100,18 @@ export const handleRagCompare = async (userMessage, authToken, userId, options =
   
   console.log(`[RAG Compare Handler] Processing expense comparison for user ${userId || 'unknown (JWT_SECRET not configured)'}`);
   
-  // AUDIT FIX: Validate userId parameter (allow null for backward compatibility)
+  // Validate userId parameter (allow null for backward compatibility)
   if (userId === undefined) {
     throw new Error('userId parameter is required for RAG Compare');
   }
   
   try {
     // Step 1: Extract expenses from user's uploaded PDF documents only
-    // AUDIT FIX: Pass userId to filter documents
+    // Pass userId to filter documents
+    console.log(`[RAG Compare Handler] Extracting PDF expenses for user ${userId}`);
     const pdfExpenses = await extractExpensesFromVectorStore(userId);
+    
+    console.log(`[RAG Compare Handler] Found ${pdfExpenses.length} PDF expenses`);
     
     if (pdfExpenses.length === 0) {
       return returnStructured 
@@ -117,9 +120,30 @@ export const handleRagCompare = async (userMessage, authToken, userId, options =
     }
     
     // Step 2: Fetch app expenses from backend
-    const appExpenses = await backendClient.get('/expenses', {}, authToken);
+    // Backend returns paginated response: { data: [...], total, page, limit }
+    console.log(`[RAG Compare Handler] Fetching app expenses from backend`);
+    const response = await backendClient.get('/expenses', { limit: 1000 }, authToken); // Get more expenses for comparison
+    
+    console.log(`[RAG Compare Handler] Backend response:`, { 
+      responseType: typeof response,
+      isArray: Array.isArray(response),
+      hasData: !!response?.data,
+      dataIsArray: Array.isArray(response?.data),
+      dataLength: response?.data?.length || 0,
+      total: response?.total
+    });
+    
+    // Extract expenses array from paginated response
+    const appExpenses = response?.data || response || [];
     
     if (!Array.isArray(appExpenses) || appExpenses.length === 0) {
+      console.warn('[RAG Compare Handler] No app expenses found', { 
+        responseType: typeof response,
+        isArray: Array.isArray(response),
+        hasData: !!response?.data,
+        dataLength: response?.data?.length || 0
+      });
+      
       return returnStructured
         ? { matched: [], pdf_only: pdfExpenses, app_only: [], error: 'No app data' }
         : "You don't have any expenses tracked in the app yet. The comparison requires both PDF and app data.";

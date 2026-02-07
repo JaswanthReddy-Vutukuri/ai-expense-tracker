@@ -1,7 +1,7 @@
 /**
  * TEXT CHUNKING TESTS
  * 
- * AUDIT FIX: Part 9 - Test Coverage
+ * Test Coverage
  * Tests text chunking logic to ensure correct chunk sizes and overlap
  */
 
