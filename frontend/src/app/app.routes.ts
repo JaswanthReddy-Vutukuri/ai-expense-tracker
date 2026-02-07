@@ -36,6 +36,10 @@ export const routes: Routes = [
       {
         path: 'expenses/edit/:id',
         loadComponent: () => import('./expenses/expense-form/expense-form.component').then(m => m.ExpenseFormComponent)
+      },
+      {
+        path: 'debug',
+        loadComponent: () => import('./debug/debug.component').then(m => m.DebugComponent)
       }
     ]
   },

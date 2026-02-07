@@ -10,6 +10,8 @@ import { errorHandler } from './src/middleware/errorHandler.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const ENABLE_DEBUG = process.env.ENABLE_DEBUG_ROUTES === 'true';
 
 // Add helmet for security headers
 app.use(helmet());
@@ -57,7 +59,14 @@ app.use((req, res, next) => {
 // Routes
 app.use('/ai', chatRoutes);
 app.use('/ai', uploadRoutes);
-app.use('/ai', debugRoutes);
+
+// Debug routes - disabled in production unless explicitly enabled
+if (!IS_PRODUCTION || ENABLE_DEBUG) {
+  app.use('/ai', debugRoutes);
+  console.log('[Server] ✅ Debug routes ENABLED');
+} else {
+  console.log('[Server] 🔒 Debug routes DISABLED (production mode)');
+}
 
 // Health Check
 app.get('/health', (req, res) => {

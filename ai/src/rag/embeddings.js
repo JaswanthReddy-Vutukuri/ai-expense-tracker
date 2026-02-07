@@ -221,8 +221,12 @@ export const isValidEmbedding = (embedding) => {
     return false;
   }
   
-  // OpenAI ada-002 produces 1536-dimensional vectors
-  if (embedding.length !== 1536) {
+  // Different models produce different dimensions:
+  // - text-embedding-ada-002: 1536
+  // - text-embedding-3-small: 1536
+  // - text-embedding-3-large: 3072
+  // Just check if it's a reasonable size
+  if (embedding.length < 100 || embedding.length > 4096) {
     return false;
   }
   
@@ -231,7 +235,27 @@ export const isValidEmbedding = (embedding) => {
 };
 
 /**
- * Gets embedding dimension size
- * @returns {number} Dimension size (1536 for ada-002)
+ * Gets embedding dimension size based on configured model
+ * @returns {number} Expected dimension size
  */
-export const getEmbeddingDimension = () => 1536;
+export const getEmbeddingDimension = () => {
+  const model = process.env.EMBEDDING_MODEL || 'text-embedding-ada-002';
+  
+  // Map models to their dimensions
+  const dimensions = {
+    // OpenAI models
+    'text-embedding-ada-002': 1536,
+    'text-embedding-3-small': 1536,
+    'text-embedding-3-large': 3072,
+    
+    // Snowflake Arctic models
+    'Snowflake/snowflake-arctic-embed-xs': 384,
+    'Snowflake/snowflake-arctic-embed-s': 384,
+    'Snowflake/snowflake-arctic-embed-m': 768,
+    'Snowflake/snowflake-arctic-embed-m-long': 768,
+    'Snowflake/snowflake-arctic-embed-l': 1024,
+    'Snowflake/snowflake-arctic-embed-l-v2.0': 1024
+  };
+  
+  return dimensions[model] || 1536; // Default to ada-002 dimension
+};

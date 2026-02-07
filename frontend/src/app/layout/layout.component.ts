@@ -40,6 +40,10 @@ import { AiChatComponent } from '../ai-chat/ai-chat.component';
             <mat-icon matListItemIcon>receipt_long</mat-icon>
             <span matListItemTitle>Expenses</span>
           </a>
+          <a mat-list-item routerLink="/debug" routerLinkActive="active-link">
+            <mat-icon matListItemIcon>bug_report</mat-icon>
+            <span matListItemTitle>Debug</span>
+          </a>
         </mat-nav-list>
       </mat-sidenav>
       <mat-sidenav-content>

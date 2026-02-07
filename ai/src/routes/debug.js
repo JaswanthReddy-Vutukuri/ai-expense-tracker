@@ -36,9 +36,18 @@ const router = express.Router();
 /**
  * GET /ai/debug/stats
  * Returns vector store statistics
+ * REQUIRES AUTHENTICATION: userId must be present
  */
 router.get('/debug/stats', authMiddleware, async (req, res) => {
   try {
+    // Enforce authentication in debug routes
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        message: 'Debug endpoints require valid JWT token with userId'
+      });
+    }
     const stats = getVectorStoreStats();
     
     res.json({
@@ -50,7 +59,8 @@ router.get('/debug/stats', authMiddleware, async (req, res) => {
           nodeVersion: process.version,
           platform: process.platform,
           uptime: process.uptime()
-        }
+        },
+        currentUserId: userId
       }
     });
   } catch (error) {
@@ -62,12 +72,20 @@ router.get('/debug/stats', authMiddleware, async (req, res) => {
  * GET /ai/debug/chunks
  * Lists all document chunks (without embeddings to save bandwidth)
  * Query params: limit, documentId
+ * REQUIRES AUTHENTICATION: userId must be present
  */
 router.get('/debug/chunks', authMiddleware, async (req, res) => {
   try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        message: 'Debug endpoints require valid JWT token with userId'
+      });
+    }
     const { limit = 50, documentId } = req.query;
     
-    let chunks = getAllChunks();
+    let chunks = getAllChunks(userId);
     
     // Filter by document if specified
     if (documentId) {
@@ -91,7 +109,8 @@ router.get('/debug/chunks', authMiddleware, async (req, res) => {
       success: true,
       total: chunks.length,
       returned: chunksWithoutEmbeddings.length,
-      chunks: chunksWithoutEmbeddings
+      chunks: chunksWithoutEmbeddings,
+      userId
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -102,9 +121,17 @@ router.get('/debug/chunks', authMiddleware, async (req, res) => {
  * GET /ai/debug/search
  * Tests similarity search
  * Query params: q (query), topK, mode (semantic|hybrid)
+ * REQUIRES AUTHENTICATION: userId must be present
  */
 router.get('/debug/search', authMiddleware, async (req, res) => {
   try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        message: 'Debug endpoints require valid JWT token with userId'
+      });
+    }
     const { q: query, topK = 5, mode = 'semantic' } = req.query;
     
     if (!query) {
@@ -114,15 +141,15 @@ router.get('/debug/search', authMiddleware, async (req, res) => {
       });
     }
     
-    console.log(`[Debug Search] Query: "${query}", Mode: ${mode}, TopK: ${topK}`);
+    console.log(`[Debug Search] Query: "${query}", Mode: ${mode}, TopK: ${topK}, UserId: ${userId}`);
     
     const startTime = Date.now();
     
     let results;
     if (mode === 'hybrid') {
-      results = await hybridSearch(query, parseInt(topK));
+      results = await hybridSearch(query, parseInt(topK), { userId });
     } else {
-      results = await searchSimilarChunks(query, parseInt(topK));
+      results = await searchSimilarChunks(query, userId, parseInt(topK));
     }
     
     const duration = Date.now() - startTime;
@@ -134,6 +161,7 @@ router.get('/debug/search', authMiddleware, async (req, res) => {
       topK: parseInt(topK),
       resultsCount: results.length,
       durationMs: duration,
+      userId,
       results: results.map(r => ({
         text: r.text.substring(0, 200) + (r.text.length > 200 ? '...' : ''),
         similarity: r.similarity,
@@ -150,16 +178,30 @@ router.get('/debug/search', authMiddleware, async (req, res) => {
 
 /**
  * GET /ai/debug/documents
- * Lists all stored documents
+ * Lists all stored documents (filtered by user)
+ * REQUIRES AUTHENTICATION: userId must be present
  */
 router.get('/debug/documents', authMiddleware, async (req, res) => {
   try {
-    const documents = listDocuments();
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        message: 'Debug endpoints require valid JWT token with userId'
+      });
+    }
+    let documents = listDocuments();
+    
+    // Filter by userId if available
+    if (userId !== null) {
+      documents = documents.filter(doc => doc.metadata?.userId === userId);
+    }
     
     res.json({
       success: true,
       count: documents.length,
-      documents
+      documents,
+      userId
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -272,7 +314,67 @@ router.post('/debug/similarity-test', authMiddleware, async (req, res) => {
       interpretation: similarity > 0.9 ? 'Very Similar' :
                      similarity > 0.7 ? 'Similar' :
                      similarity > 0.5 ? 'Somewhat Similar' :
-                     'Different'
+                     'Different',
+      dimensions: {
+        text1: embedding1.length,
+        text2: embedding2.length
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /ai/debug/embedding-info
+ * Shows information about stored embeddings vs current model
+ * REQUIRES AUTHENTICATION: userId must be present
+ */
+router.get('/debug/embedding-info', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ 
+        error: 'Authentication required',
+        message: 'Debug endpoints require valid JWT token with userId'
+      });
+    }
+    const chunks = getAllChunks(userId);
+    
+    if (chunks.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No documents uploaded yet',
+        currentModel: process.env.EMBEDDING_MODEL || 'text-embedding-ada-002',
+        expectedDimension: getEmbeddingDimension()
+      });
+    }
+    
+    // Check dimensions of stored embeddings
+    const dimensions = chunks.map(c => c.embedding?.length).filter(Boolean);
+    const uniqueDimensions = [...new Set(dimensions)];
+    const mostCommon = dimensions.reduce((acc, dim) => {
+      acc[dim] = (acc[dim] || 0) + 1;
+      return acc;
+    }, {});
+    
+    const currentExpected = getEmbeddingDimension();
+    const storedDimension = uniqueDimensions[0];
+    const mismatch = storedDimension !== currentExpected;
+    
+    res.json({
+      success: true,
+      currentModel: process.env.EMBEDDING_MODEL || 'text-embedding-ada-002',
+      expectedDimension: currentExpected,
+      storedDimensions: {
+        unique: uniqueDimensions,
+        distribution: mostCommon,
+        totalChunks: dimensions.length
+      },
+      dimensionMismatch: mismatch,
+      recommendation: mismatch 
+        ? `⚠️ MISMATCH DETECTED: Your stored embeddings have ${storedDimension} dimensions but current model expects ${currentExpected}. Please re-upload your documents to fix search.`
+        : '✅ Embeddings are compatible with current model'
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -287,6 +389,15 @@ router.get('/debug/health', async (req, res) => {
   try {
     const stats = getVectorStoreStats();
     
+    // Check embedding dimensions in store
+    let storedDimension = null;
+    const chunks = listDocuments();
+    if (chunks.length > 0) {
+      const firstDoc = chunks[0];
+      // Try to get dimension from first chunk if available
+      storedDimension = 'unknown';
+    }
+    
     res.json({
       success: true,
       status: 'healthy',
@@ -295,12 +406,14 @@ router.get('/debug/health', async (req, res) => {
         vectorStore: {
           status: 'operational',
           documentsCount: stats.totalDocuments,
-          chunksCount: stats.totalChunks
+          chunksCount: stats.totalChunks,
+          storedEmbeddingDimension: storedDimension
         },
         embeddings: {
           status: 'operational',
           model: process.env.EMBEDDING_MODEL || 'text-embedding-ada-002',
-          dimension: getEmbeddingDimension()
+          expectedDimension: getEmbeddingDimension(),
+          baseURL: process.env.EMBEDDING_BASE_URL || 'https://api.openai.com/v1'
         },
         llm: {
           status: 'operational',

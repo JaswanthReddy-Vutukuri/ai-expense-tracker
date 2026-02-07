@@ -27,8 +27,12 @@ import { generateEmbedding } from './embeddings.js';
  * @returns {number} Similarity score between -1 and 1
  */
 export const cosineSimilarity = (vecA, vecB) => {
+  if (!vecA || !vecB) {
+    throw new Error(`Invalid vectors: vecA=${!!vecA}, vecB=${!!vecB}`);
+  }
+  
   if (vecA.length !== vecB.length) {
-    throw new Error('Vectors must have same dimension');
+    throw new Error(`Vectors must have same dimension: vecA=${vecA.length}, vecB=${vecB.length}. This usually means embeddings were generated with different models. Try re-uploading your documents.`);
   }
   
   let dotProduct = 0;
@@ -91,22 +95,38 @@ export const searchSimilarChunks = async (queryText, userId, topK = 5, options =
   
   // Generate embedding for query
   const queryEmbedding = await generateEmbedding(queryText);
+  console.log(`[Similarity Search] Query embedding dimension: ${queryEmbedding.length}`);
+  
+  // Check if chunk embeddings have consistent dimensions
+  const firstChunkDim = allChunks[0]?.embedding?.length;
+  console.log(`[Similarity Search] First chunk embedding dimension: ${firstChunkDim}`);
+  
+  if (firstChunkDim !== queryEmbedding.length) {
+    console.error(`[Similarity Search] DIMENSION MISMATCH: Query=${queryEmbedding.length}, Chunks=${firstChunkDim}`);
+    throw new Error(`Embedding dimension mismatch: Query embedding has ${queryEmbedding.length} dimensions but stored chunks have ${firstChunkDim} dimensions. This means documents were embedded with a different model. Please re-upload your documents.`);
+  }
   
   // Compute similarity for each chunk
-  const results = allChunks.map(chunk => {
-    const similarity = cosineSimilarity(queryEmbedding, chunk.embedding);
-    return {
-      text: chunk.text,
-      similarity,
-      chunkIndex: chunk.index,
-      documentId: chunk.documentId,
-      filename: chunk.filename,
-      metadata: {
-        startChar: chunk.startChar,
-        endChar: chunk.endChar,
-        length: chunk.length
-      }
-    };
+  const results = allChunks.map((chunk, idx) => {
+    try {
+      const similarity = cosineSimilarity(queryEmbedding, chunk.embedding);
+      return {
+        text: chunk.text,
+        similarity,
+        chunkIndex: chunk.index,
+        documentId: chunk.documentId,
+        filename: chunk.filename,
+        metadata: {
+          startChar: chunk.startChar,
+          endChar: chunk.endChar,
+          length: chunk.length
+        }
+      };
+    } catch (error) {
+      console.error(`[Similarity Search] Error computing similarity for chunk ${idx}:`, error.message);
+      console.error(`  Chunk embedding dimension: ${chunk.embedding?.length}`);
+      throw error;
+    }
   });
   
   // Filter by minimum similarity
@@ -170,11 +190,11 @@ export const searchInDocument = async (queryText, documentId, topK = 5) => {
  * @returns {Promise<Array>} Ranked results
  */
 export const hybridSearch = async (queryText, topK = 5, options = {}) => {
-  const { keywordWeight = 0.3, semanticWeight = 0.7 } = options;
+  const { keywordWeight = 0.3, semanticWeight = 0.7, userId = null } = options;
   
   console.log(`[Hybrid Search] Query: "${queryText.substring(0, 50)}..."`);
   
-  const allChunks = getAllChunks();
+  const allChunks = getAllChunks(userId);
   
   if (allChunks.length === 0) {
     return [];
