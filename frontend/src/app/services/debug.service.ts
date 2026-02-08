@@ -43,7 +43,7 @@ export interface SearchResult {
   providedIn: 'root'
 })
 export class DebugService {
-  private aiUrl = 'http://localhost:3001/ai';
+  private aiUrl = 'http://localhost:3002/ai';
 
   constructor(private http: HttpClient) {}
 

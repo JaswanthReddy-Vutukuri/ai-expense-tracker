@@ -1,0 +1,46 @@
+# .gitignore for ai-langx
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Data files
+data/vectorstore/
+data/reports/
+*.db
+*.sqlite
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+.cache/
+
+# Test
+coverage/
+.nyc_output/
+
+# Temporary
+tmp/
+temp/
+*.tmp

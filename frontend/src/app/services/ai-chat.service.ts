@@ -34,7 +34,7 @@ export interface UploadResponse {
 })
 export class AiChatService {
   // AI service runs on port 3001
-  private aiUrl = 'http://localhost:3001/ai';
+  private aiUrl = 'http://localhost:3002/ai';
 
   constructor(private http: HttpClient) {}
 
